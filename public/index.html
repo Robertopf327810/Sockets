@@ -440,7 +440,7 @@
                             <li>✅ Identificación por nombre y color</li>
                             <li>✅ Uso de emojis y reporte de mensajes</li>
                             <li>❌ Salas privadas bloqueadas</li>
-                            <li>❌ Subida de archivos y perfil bloqueados</li>
+                            <li>❌ Subida de imágenes y perfil bloqueados</li>
                         </ul>
                     </div>
                     <button class="btn-hero-secundario" style="width: 100%;" onclick="abrirModalAuth('invitado')">Entrar como Invitado</button>
@@ -453,7 +453,7 @@
                         <ul>
                             <li>✅ Todo lo incluido en el modo Invitado</li>
                             <li>✅ Creación y acceso a Salas Privadas</li>
-                            <li>✅ Subida de archivos e imágenes (máx. 2 MB)</li>
+                            <li>✅ Subida de imágenes JPG, PNG, GIF o WEBP (máx. 2 MB)</li>
                             <li>✅ Apartado de Perfil editable (apodo y color)</li>
                         </ul>
                     </div>
@@ -486,7 +486,7 @@
             </div>
 
             <div class="info-beneficios" id="texto-beneficios">
-                👤 <strong>Modo Invitado:</strong> Acceso al Chat Global. Regístrate para desbloquear Salas Privadas, Perfil y archivos de 2 MB.
+                👤 <strong>Modo Invitado:</strong> Acceso al Chat Global. Regístrate para desbloquear Salas Privadas, Perfil e imágenes de 2 MB.
             </div>
 
             <button class="btn-primario" onclick="procesarEntrada()">Entrar al Chat</button>
@@ -511,8 +511,10 @@
 
         <div class="barra-salas">
             <button class="btn-mini" onclick="cambiarSala('Global')">🌐 Chat Global</button>
-            <input type="text" id="input-sala-privada" placeholder="Nombre de sala privada...">
-            <button class="btn-mini" id="btn-sala-privada" onclick="entrarSalaPrivada()">🔒 Ir a Privada</button>
+            <input type="text" id="input-sala-privada" maxlength="60" placeholder="Nombre de sala privada...">
+            <button class="btn-mini" id="btn-sala-privada" onclick="entrarSalaPrivada()">🔒 Unirme</button>
+            <button class="btn-mini" id="btn-crear-sala" onclick="crearSalaPrivada()">➕ Crear privada</button>
+            <button class="btn-mini" id="btn-invitar-sala" onclick="invitarASala()" hidden>👥 Invitar usuario</button>
         </div>
 
         <ul id="mensajes"></ul>
@@ -533,8 +535,8 @@
 
         <div class="chat-input-area">
             <button class="btn-icono" title="Emojis" onclick="toggleEmojis()">😊</button>
-            <button class="btn-icono" id="btn-archivo" title="Subir archivo (Máx 2 MB)" onclick="seleccionarArchivo()">📎</button>
-            <input type="file" id="input-archivo" style="display: none;" onchange="manejarArchivo(event)">
+            <button class="btn-icono" id="btn-archivo" title="Subir imagen JPG, PNG, GIF o WEBP (Máx 2 MB)" onclick="seleccionarArchivo()">🖼️</button>
+            <input type="file" id="input-archivo" accept="image/jpeg,image/png,image/gif,image/webp" style="display: none;" onchange="manejarArchivo(event)">
             <input type="text" id="mensaje" placeholder="Escribe un mensaje..." autocomplete="off">
             <button class="btn-enviar" onclick="enviarMensaje()">Enviar</button>
         </div>
@@ -592,10 +594,10 @@
 
             if (modo === 'invitado') {
                 passInput.style.display = 'none';
-                info.innerHTML = '👤 <strong>Modo Invitado:</strong> Acceso al Chat Global. Regístrate para desbloquear Salas Privadas, Perfil y archivos de 2 MB.';
+                info.innerHTML = '👤 <strong>Modo Invitado:</strong> Acceso al Chat Global. Regístrate para desbloquear Salas Privadas, Perfil e imágenes de 2 MB.';
             } else {
                 passInput.style.display = 'block';
-                info.innerHTML = '🔓 <strong>Cuenta Registrada:</strong> Desbloquea Salas Privadas, edición de Perfil y subida de archivos de hasta 2 MB.';
+                info.innerHTML = '🔓 <strong>Cuenta Registrada:</strong> Desbloquea Salas Privadas, edición de Perfil y subida de imágenes de hasta 2 MB.';
             }
         }
 
@@ -632,7 +634,7 @@
                 document.getElementById('btn-perfil').classList.toggle('bloqueado', !usuarioActual.registrado);
                 document.getElementById('btn-archivo').classList.toggle('bloqueado', !usuarioActual.registrado);
 
-                socket.emit('unirse-sala', usuarioActual);
+                socket.emit('unirse-sala', { sala: 'Global' });
             });
         }
 
@@ -651,10 +653,17 @@
         // Salas
         function cambiarSala(nuevaSala) {
             if (usuarioActual.sala === nuevaSala) return;
-            usuarioActual.sala = nuevaSala;
-            document.getElementById('mensajes').innerHTML = '';
-            document.getElementById('indicador-sala').textContent = `Sala: ${nuevaSala}`;
-            socket.emit('unirse-sala', usuarioActual);
+            socket.emit('unirse-sala', { sala: nuevaSala }, (res) => {
+                if (!res.ok) {
+                    alert(res.error);
+                    return;
+                }
+
+                usuarioActual.sala = res.sala;
+                document.getElementById('mensajes').replaceChildren();
+                document.getElementById('indicador-sala').textContent = `Sala: ${res.sala}`;
+                document.getElementById('btn-invitar-sala').hidden = !res.esPropietario;
+            });
         }
 
         function entrarSalaPrivada() {
@@ -665,6 +674,46 @@
             if (!salaPriv) return alert('Escribe un nombre para la sala privada.');
             cambiarSala(`Privada: ${salaPriv}`);
         }
+
+        function crearSalaPrivada() {
+            if (!usuarioActual.registrado) {
+                return alert('🔒 Inicia sesión o regístrate para crear salas privadas.');
+            }
+            const nombre = document.getElementById('input-sala-privada').value.trim();
+            if (!nombre) return alert('Escribe un nombre para la sala privada.');
+
+            socket.emit('crear-sala-privada', { nombre }, (res) => {
+                if (!res.ok) {
+                    alert(res.error);
+                    return;
+                }
+
+                usuarioActual.sala = res.sala;
+                document.getElementById('mensajes').replaceChildren();
+                document.getElementById('indicador-sala').textContent = `Sala: ${res.sala}`;
+                document.getElementById('btn-invitar-sala').hidden = !res.esPropietario;
+            });
+        }
+
+        function invitarASala() {
+            if (!usuarioActual.registrado || !usuarioActual.sala.startsWith('Privada: ')) {
+                return alert('Solo el propietario de una sala privada puede invitar usuarios.');
+            }
+            const usuario = prompt('Escribe el nombre de la cuenta registrada que quieres invitar:');
+            if (!usuario || !usuario.trim()) return;
+
+            socket.emit('invitar-a-sala', { sala: usuarioActual.sala, usuario: usuario.trim() }, (res) => {
+                if (!res.ok) {
+                    alert(res.error);
+                    return;
+                }
+                alert(`Se invitó a ${res.usuario}. Comparte el nombre de la sala: ${usuarioActual.sala.replace('Privada: ', '')}`);
+            });
+        }
+
+        socket.on('invitacion-sala', ({ sala }) => {
+            alert(`Te invitaron a la sala privada "${sala}". Escribe "${sala.replace('Privada: ', '')}" en el campo de salas privadas y pulsa "Unirme".`);
+        });
 
         // Perfil
         function abrirPerfil() {
@@ -680,12 +729,15 @@
             const nuevoNombre = document.getElementById('perfil-nombre').value.trim();
             const nuevoColor = document.getElementById('perfil-color').value;
             socket.emit('actualizar-perfil', { nuevoNombre, nuevoColor }, (res) => {
-                if (res.ok) {
-                    usuarioActual.nombre = res.nombre;
-                    usuarioActual.color = res.color;
-                    document.getElementById('nav-nombre-usuario').textContent = `Conectado: ${res.nombre}`;
-                    cerrarPerfil();
+                if (!res.ok) {
+                    alert(res.error);
+                    return;
                 }
+
+                usuarioActual.nombre = res.nombre;
+                usuarioActual.color = res.color;
+                document.getElementById('nav-nombre-usuario').textContent = `Conectado: ${res.nombre}`;
+                cerrarPerfil();
             });
         }
 
@@ -700,10 +752,10 @@
             input.focus();
         }
 
-        // Subida de archivos (máx 2 MB)
+        // Subida de imágenes JPG, PNG, GIF o WEBP (máx. 2 MB)
         function seleccionarArchivo() {
             if (!usuarioActual.registrado) {
-                return alert('🔒 Regístrate para desbloquear la subida de archivos de hasta 2 MB.');
+                return alert('🔒 Regístrate para desbloquear la subida de imágenes de hasta 2 MB.');
             }
             document.getElementById('input-archivo').click();
         }
@@ -712,20 +764,36 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            const tiposPermitidos = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!tiposPermitidos.includes(file.type)) {
+                alert('❌ Solo se permiten imágenes JPG, PNG, GIF o WEBP.');
+                event.target.value = '';
+                return;
+            }
+
             const maxBytes = 2 * 1024 * 1024;
             if (file.size > maxBytes) {
-                alert('❌ El archivo excede el límite permitido de 2 MB.');
+                alert('❌ La imagen excede el límite permitido de 2 MB.');
                 event.target.value = '';
                 return;
             }
 
             const reader = new FileReader();
             reader.onload = () => {
+                if (typeof reader.result !== 'string') {
+                    alert('❌ No se pudo leer la imagen.');
+                    event.target.value = '';
+                    return;
+                }
                 socket.emit('mensaje', {
                     texto: document.getElementById('mensaje').value.trim(),
                     archivo: { nombre: file.name, tipo: file.type, tamano: file.size, dataUrl: reader.result }
                 });
                 document.getElementById('mensaje').value = '';
+                event.target.value = '';
+            };
+            reader.onerror = () => {
+                alert('❌ Ocurrió un error al leer la imagen.');
                 event.target.value = '';
             };
             reader.readAsDataURL(file);
@@ -766,6 +834,10 @@
             lista.scrollTop = lista.scrollHeight;
         });
 
+        socket.on('alerta-moderacion', (texto) => {
+            alert(texto);
+        });
+
         socket.on('escribiendo', (nombre) => {
             document.getElementById('estado-escribiendo').textContent = `${nombre} está escribiendo...`;
         });
@@ -784,28 +856,46 @@
             li.id = `msg-${data.msgId}`;
             li.className = `burbuja ${esMio ? 'propio' : 'ajeno'}`;
 
-            let contenidoArchivo = '';
-            if (data.archivo) {
-                if (data.archivo.tipo.startsWith('image/')) {
-                    contenidoArchivo = `<div class="archivo-adjunto"><img src="${data.archivo.dataUrl}" alt="${data.archivo.nombre}"></div>`;
-                } else {
-                    contenidoArchivo = `<div class="archivo-adjunto"><a href="${data.archivo.dataUrl}" download="${data.archivo.nombre}">📄 Descargar ${data.archivo.nombre}</a></div>`;
-                }
+            const cabecera = document.createElement('div');
+            cabecera.className = 'cabecera-msg';
+            const remitente = document.createElement('span');
+            remitente.className = 'nombre-remitente';
+            remitente.style.color = /^#[0-9A-Fa-f]{6}$/.test(data.color)
+                ? (esMio ? '#6ee7b7' : data.color)
+                : (esMio ? '#6ee7b7' : '#38bdf8');
+            remitente.textContent = esMio ? `${data.nombre} (Tú)` : data.nombre;
+            cabecera.appendChild(remitente);
+
+            if (!esMio) {
+                const botonReporte = document.createElement('button');
+                botonReporte.className = 'btn-reportar';
+                botonReporte.title = 'Reportar mensaje malvado';
+                botonReporte.textContent = '🚩 Reportar';
+                botonReporte.addEventListener('click', () => reportar(data.msgId));
+                cabecera.appendChild(botonReporte);
             }
 
-            const botonReporte = !esMio
-                ? `<button class="btn-reportar" onclick="reportar('${data.msgId}')" title="Reportar mensaje malvado">🚩 Reportar</button>`
-                : '';
+            const texto = document.createElement('div');
+            texto.textContent = data.texto;
+            li.append(cabecera, texto);
 
-            li.innerHTML = `
-                <div class="cabecera-msg">
-                    <span class="nombre-remitente" style="color: ${esMio ? '#6ee7b7' : data.color}">${esMio ? `${data.nombre} (Tú)` : data.nombre}</span>
-                    ${botonReporte}
-                </div>
-                <div>${data.texto}</div>
-                ${contenidoArchivo}
-                <span class="hora-mensaje">${data.hora}</span>
-            `;
+            if (data.archivo) {
+                const contenedorArchivo = document.createElement('div');
+                contenedorArchivo.className = 'archivo-adjunto';
+
+                if (['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(data.archivo.tipo)) {
+                    const imagen = document.createElement('img');
+                    imagen.src = data.archivo.dataUrl;
+                    imagen.alt = data.archivo.nombre;
+                    contenedorArchivo.appendChild(imagen);
+                }
+                if (contenedorArchivo.childElementCount > 0) li.appendChild(contenedorArchivo);
+            }
+
+            const hora = document.createElement('span');
+            hora.className = 'hora-mensaje';
+            hora.textContent = data.hora;
+            li.appendChild(hora);
 
             lista.appendChild(li);
             lista.scrollTop = lista.scrollHeight;
@@ -817,7 +907,11 @@
 
         socket.on('mensaje-oculto', (msgId) => {
             const el = document.getElementById(`msg-${msgId}`);
-            if (el) el.innerHTML = '<em style="opacity:0.6; font-size:0.85rem;">🚫 Mensaje ocultado por reportes.</em>';
+            if (el) {
+                const aviso = document.createElement('em');
+                aviso.textContent = '🚫 Mensaje ocultado por reportes.';
+                el.replaceChildren(aviso);
+            }
         });
     </script>
 </body>
