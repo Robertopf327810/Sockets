@@ -17,8 +17,10 @@ const usuariosConectados = Object.create(null); // { socketId: { nombre, sala, r
 const cuentasRegistradas = Object.create(null); // { usuario: { password, color } }
 const reportesMensajes = Object.create(null);   // { msgId: Set(socketId) }
 const salasPrivadas = Object.create(null); // { claveSala: { nombre, propietario, miembros: Set(usuario) } }
+const ultimoEnlacePorCuenta = Object.create(null);
 
 const LIMITE_BYTES_ARCHIVO = 2 * 1024 * 1024; // 2 MB exactos[cite: 16]
+const INTERVALO_ENLACES = 24 * 60 * 60 * 1000;
 const TIPOS_IMAGEN_PERMITIDOS = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 const PALABRAS_OFENSIVAS = [
   'asshole', 'bitch', 'cabron', 'cabrona', 'culo', 'fuck', 'idiota',
@@ -42,6 +44,11 @@ function contieneLenguajeOfensivo(texto) {
     const letrasConSeparadores = palabra.split('').map((letra) => `${letra}+`).join('[^a-z0-9]*');
     return new RegExp(`(^|[^a-z0-9])${letrasConSeparadores}($|[^a-z0-9])`).test(normalizado);
   });
+}
+
+function contarEnlaces(texto) {
+  const patronEnlace = /(?:https?:\/\/|www\.)[^\s<>"']+|(?:^|[\s([{])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi;
+  return (texto.match(patronEnlace) || []).length;
 }
 
 function limpiarNombreSala(nombre) {
@@ -101,7 +108,8 @@ io.on('connection', (socket) => {
       registrado: identidad.registrado,
       color: identidad.color,
       cuentaId: identidad.cuentaId,
-      ultimoMensaje: usuarioPrevio ? usuarioPrevio.ultimoMensaje : 0
+      ultimoMensaje: usuarioPrevio ? usuarioPrevio.ultimoMensaje : 0,
+      ultimoEnlace: usuarioPrevio ? usuarioPrevio.ultimoEnlace : 0
     };
 
     const salaPrivada = salaDestino === 'Global'
@@ -323,6 +331,21 @@ io.on('connection', (socket) => {
       return socket.emit('alerta-moderacion', 'Tu mensaje contiene lenguaje ofensivo y no se envió. Por favor, escribe otro mensaje.');
     }
 
+    const cantidadEnlaces = contarEnlaces(textoLimpio);
+    if (cantidadEnlaces > 1) {
+      return socket.emit('alerta-moderacion', 'Solo puedes enviar un enlace cada 24 horas. El mensaje no se envió.');
+    }
+
+    const enviarEnlace = cantidadEnlaces === 1;
+    if (enviarEnlace) {
+      const ultimoEnlace = user.registrado
+        ? ultimoEnlacePorCuenta[user.cuentaId] || 0
+        : user.ultimoEnlace;
+      if (ahora - ultimoEnlace < INTERVALO_ENLACES) {
+        return socket.emit('alerta-moderacion', 'Ya enviaste un enlace en las últimas 24 horas. Inténtalo más tarde.');
+      }
+    }
+
     let archivoValidado = null;
 
     // Solo se permiten imágenes rasterizadas validadas por su firma binaria.
@@ -366,6 +389,14 @@ io.on('connection', (socket) => {
     }
 
     if (!textoLimpio && !archivoValidado) return;
+
+    if (enviarEnlace) {
+      if (user.registrado) {
+        ultimoEnlacePorCuenta[user.cuentaId] = ahora;
+      } else {
+        user.ultimoEnlace = ahora;
+      }
+    }
 
     const msgId = `${socket.id}-${ahora}`;
     io.to(user.sala).emit('mensaje', {
