@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat en Tiempo Real - Sockets</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #f8fafc;
+        }
+
+        /* Pantalla inicial para pedir el nombre */
+        #pantalla-login {
+            background: #1e293b;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid #334155;
+        }
+
+        #pantalla-login h2 {
+            margin-bottom: 0.5rem;
+            color: #38bdf8;
+        }
+
+        #pantalla-login p {
+            margin-bottom: 1.5rem;
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        #pantalla-login input {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            outline: none;
+        }
+
+        #pantalla-login input:focus {
+            border-color: #38bdf8;
+        }
+
+        #pantalla-login button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #0284c7;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #pantalla-login button:hover {
+            background: #0369a1;
+        }
+
+        /* Contenedor principal del Chat */
+        #contenedor-chat {
+            display: none;
+            flex-direction: column;
+            width: 95%;
+            max-width: 600px;
+            height: 85vh;
+            background: #1e293b;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+
+        .chat-header {
+            background: #0f172a;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+        }
+
+        .chat-header h1 {
+            font-size: 1.2rem;
+            color: #38bdf8;
+        }
+
+        #usuario-actual {
+            font-size: 0.85rem;
+            background: #334155;
+            padding: 4px 10px;
+            border-radius: 20px;
+            color: #e2e8f0;
+        }
+
+        /* Lista de mensajes */
+        #mensajes {
+            flex: 1;
+            list-style: none;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background-color: #162032;
+        }
+
+        #mensajes li {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .nombre-remitente {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        /* Estilos diferenciados: Propios vs Ajenos */
+        .propio {
+            background: #065f46; /* Verde esmeralda oscuro */
+            color: #ecfdf5;
+            margin-left: auto;
+            border-bottom-right-radius: 2px;
+        }
+
+        .propio .nombre-remitente {
+            color: #6ee7b7;
+            text-align: right;
+        }
+
+        .ajeno {
+            background: #334155; /* Gris azulado */
+            color: #f8fafc;
+            margin-right: auto;
+            border-bottom-left-radius: 2px;
+        }
+
+        /* Barra inferior de envío */
+        .chat-input-area {
+            display: flex;
+            padding: 15px;
+            background: #0f172a;
+            gap: 10px;
+            border-top: 1px solid #334155;
+        }
+
+        #mensaje {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 24px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: white;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        #mensaje:focus {
+            border-color: #38bdf8;
+        }
+
+        .chat-input-area button {
+            padding: 12px 22px;
+            border: none;
+            border-radius: 24px;
+            background: #0284c7;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .chat-input-area button:hover {
+            background: #0369a1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Paso 1: Pedir nombre al usuario -->
+    <div id="pantalla-login">
+        <h2>Bienvenido al Chat</h2>
+        <p>Ingresa tu nombre para unirte a la conversación</p>
+        <input type="text" id="input-nombre" placeholder="Tu nombre o apodo..." maxlength="20" autocomplete="off">
+        <button onclick="entrarAlChat()">Entrar al Chat</button>
+    </div>
+
+    <!-- Paso 2: Sala de Chat -->
+    <div id="contenedor-chat">
+        <div class="chat-header">
+            <h1>Chat en tiempo real</h1>
+            <span id="usuario-actual"></span>
+        </div>
+
+        <ul id="mensajes"></ul>
+
+        <div class="chat-input-area">
+            <input type="text" id="mensaje" placeholder="Escribe un mensaje..." autocomplete="off">
+            <button onclick="enviarMensaje()">Enviar</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let miNombre = "";
+
+        // Paleta de colores para distinguir a otros usuarios
+        const paletaColores = [
+            "#f472b6", "#fb923c", "#facc15", "#a78bfa", 
+            "#38bdf8", "#4ade80", "#f87171", "#2dd4bf"
+        ];
+
+        // Genera un color consistente según el ID del usuario
+        function obtenerColorUsuario(id) {
+            let suma = 0;
+            for (let i = 0; i < id.length; i++) {
+                suma += id.charCodeAt(i);
+            }
+            return paletaColores[suma % paletaColores.length];
+        }
+
+        // Validar y entrar al chat
+        function entrarAlChat() {
+            const inputNombre = document.getElementById("input-nombre");
+            const nombreIngresado = inputNombre.value.trim();
+
+            if (nombreIngresado === "") {
+                alert("Por favor, escribe tu nombre antes de entrar.");
+                return;
+            }
+
+            miNombre = nombreIngresado;
+            document.getElementById("usuario-actual").textContent = `Conectado como: ${miNombre}`;
+            document.getElementById("pantalla-login").style.display = "none";
+            document.getElementById("contenedor-chat").style.display = "flex";
+            document.getElementById("mensaje").focus();
+        }
+
+        // Permitir entrar con Enter en el login
+        document.getElementById("input-nombre").addEventListener("keypress", (e) => {
+            if (e.key === "Enter") entrarAlChat();
+        });
+
+        // Enviar mensaje al servidor
+        function enviarMensaje() {
+            const input = document.getElementById("mensaje");
+            const texto = input.value.trim();
+
+            if (texto !== "") {
+                socket.emit("mensaje", {
+                    nombre: miNombre,
+                    texto: texto
+                });
+                input.value = "";
+                input.focus();
+            }
+        }
+
+        // Permitir enviar mensaje con Enter
+        document.getElementById("mensaje").addEventListener("keypress", (e) => {
+            if (e.key === "Enter") enviarMensaje();
+        });
+
+        // Recibir mensajes y renderizar con colores diferenciados
+        socket.on("mensaje", ({ id, nombre, texto }) => {
+            const lista = document.getElementById("mensajes");
+            const item = document.createElement("li");
+            const esMio = id === socket.id;
+
+            item.classList.add(esMio ? "propio" : "ajeno");
+
+            const etiquetaNombre = document.createElement("span");
+            etiquetaNombre.classList.add("nombre-remitente");
+            etiquetaNombre.textContent = esMio ? `${nombre} (Tú)` : nombre;
+
+            // Si es un mensaje ajeno, le asigna un color distintivo al nombre y borde
+            if (!esMio) {
+                const colorUsuario = obtenerColorUsuario(id);
+                etiquetaNombre.style.color = colorUsuario;
+                item.style.borderLeft = `4px solid ${colorUsuario}`;
+            }
+
+            const contenidoTexto = document.createElement("span");
+            contenidoTexto.textContent = texto;
+
+            item.appendChild(etiquetaNombre);
+            item.appendChild(contenidoTexto);
+            lista.appendChild(item);
+
+            // Auto-scroll hacia el último mensaje
+            lista.scrollTop = lista.scrollHeight;
+        });
+    </script>
+</body>
+</html> 
