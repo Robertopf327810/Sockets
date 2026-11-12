@@ -21,7 +21,6 @@
             color: #f8fafc;
         }
 
-        /* Pantalla inicial para pedir el nombre */
         #pantalla-login {
             background: #1e293b;
             padding: 2.5rem;
@@ -33,16 +32,8 @@
             border: 1px solid #334155;
         }
 
-        #pantalla-login h2 {
-            margin-bottom: 0.5rem;
-            color: #38bdf8;
-        }
-
-        #pantalla-login p {
-            margin-bottom: 1.5rem;
-            color: #94a3b8;
-            font-size: 0.95rem;
-        }
+        #pantalla-login h2 { margin-bottom: 0.5rem; color: #38bdf8; }
+        #pantalla-login p { margin-bottom: 1.5rem; color: #94a3b8; font-size: 0.95rem; }
 
         #pantalla-login input {
             width: 100%;
@@ -56,9 +47,7 @@
             outline: none;
         }
 
-        #pantalla-login input:focus {
-            border-color: #38bdf8;
-        }
+        #pantalla-login input:focus { border-color: #38bdf8; }
 
         #pantalla-login button {
             width: 100%;
@@ -70,19 +59,15 @@
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.2s;
         }
 
-        #pantalla-login button:hover {
-            background: #0369a1;
-        }
+        #pantalla-login button:hover { background: #0369a1; }
 
-        /* Contenedor principal del Chat */
         #contenedor-chat {
             display: none;
             flex-direction: column;
             width: 95%;
-            max-width: 600px;
+            max-width: 650px;
             height: 85vh;
             background: #1e293b;
             border-radius: 16px;
@@ -93,17 +78,18 @@
 
         .chat-header {
             background: #0f172a;
-            padding: 16px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 14px 20px;
             border-bottom: 1px solid #334155;
         }
 
-        .chat-header h1 {
-            font-size: 1.2rem;
-            color: #38bdf8;
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
         }
+
+        .chat-header h1 { font-size: 1.2rem; color: #38bdf8; }
 
         #usuario-actual {
             font-size: 0.85rem;
@@ -113,7 +99,11 @@
             color: #e2e8f0;
         }
 
-        /* Lista de mensajes */
+        #barra-conectados {
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
         #mensajes {
             flex: 1;
             list-style: none;
@@ -125,13 +115,24 @@
             background-color: #162032;
         }
 
-        #mensajes li {
+        #mensajes li.burbuja {
             max-width: 75%;
             padding: 10px 14px;
             border-radius: 14px;
             line-height: 1.4;
             word-wrap: break-word;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Avisos de entrada/salida */
+        #mensajes li.sistema {
+            align-self: center;
+            background: rgba(51, 65, 85, 0.6);
+            color: #94a3b8;
+            font-size: 0.8rem;
+            padding: 4px 14px;
+            border-radius: 12px;
+            font-style: italic;
         }
 
         .nombre-remitente {
@@ -141,9 +142,16 @@
             margin-bottom: 4px;
         }
 
-        /* Estilos diferenciados: Propios vs Ajenos */
+        .hora-mensaje {
+            display: block;
+            font-size: 0.68rem;
+            opacity: 0.7;
+            margin-top: 4px;
+            text-align: right;
+        }
+
         .propio {
-            background: #065f46; /* Verde esmeralda oscuro */
+            background: #065f46;
             color: #ecfdf5;
             margin-left: auto;
             border-bottom-right-radius: 2px;
@@ -155,13 +163,21 @@
         }
 
         .ajeno {
-            background: #334155; /* Gris azulado */
+            background: #334155;
             color: #f8fafc;
             margin-right: auto;
             border-bottom-left-radius: 2px;
         }
 
-        /* Barra inferior de envío */
+        #estado-escribiendo {
+            height: 22px;
+            padding: 2px 20px;
+            font-size: 0.8rem;
+            color: #38bdf8;
+            background-color: #162032;
+            font-style: italic;
+        }
+
         .chat-input-area {
             display: flex;
             padding: 15px;
@@ -181,9 +197,7 @@
             outline: none;
         }
 
-        #mensaje:focus {
-            border-color: #38bdf8;
-        }
+        #mensaje:focus { border-color: #38bdf8; }
 
         .chat-input-area button {
             padding: 12px 22px;
@@ -193,17 +207,13 @@
             color: white;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.2s;
         }
 
-        .chat-input-area button:hover {
-            background: #0369a1;
-        }
+        .chat-input-area button:hover { background: #0369a1; }
     </style>
 </head>
 <body>
 
-    <!-- Paso 1: Pedir nombre al usuario -->
     <div id="pantalla-login">
         <h2>Bienvenido al Chat</h2>
         <p>Ingresa tu nombre para unirte a la conversación</p>
@@ -211,14 +221,17 @@
         <button onclick="entrarAlChat()">Entrar al Chat</button>
     </div>
 
-    <!-- Paso 2: Sala de Chat -->
     <div id="contenedor-chat">
         <div class="chat-header">
-            <h1>Chat en tiempo real</h1>
-            <span id="usuario-actual"></span>
+            <div class="header-top">
+                <h1>Chat en tiempo real</h1>
+                <span id="usuario-actual"></span>
+            </div>
+            <div id="barra-conectados">Conectados: cargando...</div>
         </div>
 
         <ul id="mensajes"></ul>
+        <div id="estado-escribiendo"></div>
 
         <div class="chat-input-area">
             <input type="text" id="mensaje" placeholder="Escribe un mensaje..." autocomplete="off">
@@ -230,14 +243,13 @@
     <script>
         const socket = io();
         let miNombre = "";
+        let temporizadorEscribiendo;
 
-        // Paleta de colores para distinguir a otros usuarios
         const paletaColores = [
             "#f472b6", "#fb923c", "#facc15", "#a78bfa", 
             "#38bdf8", "#4ade80", "#f87171", "#2dd4bf"
         ];
 
-        // Genera un color consistente según el ID del usuario
         function obtenerColorUsuario(id) {
             let suma = 0;
             for (let i = 0; i < id.length; i++) {
@@ -246,7 +258,6 @@
             return paletaColores[suma % paletaColores.length];
         }
 
-        // Validar y entrar al chat
         function entrarAlChat() {
             const inputNombre = document.getElementById("input-nombre");
             const nombreIngresado = inputNombre.value.trim();
@@ -257,18 +268,28 @@
             }
 
             miNombre = nombreIngresado;
-            document.getElementById("usuario-actual").textContent = `Conectado como: ${miNombre}`;
+            document.getElementById("usuario-actual").textContent = `Tú: ${miNombre}`;
             document.getElementById("pantalla-login").style.display = "none";
             document.getElementById("contenedor-chat").style.display = "flex";
             document.getElementById("mensaje").focus();
+
+            // Notificar al servidor el nombre del nuevo usuario
+            socket.emit("nuevo-usuario", miNombre);
         }
 
-        // Permitir entrar con Enter en el login
         document.getElementById("input-nombre").addEventListener("keypress", (e) => {
             if (e.key === "Enter") entrarAlChat();
         });
 
-        // Enviar mensaje al servidor
+        // Detectar cuando el usuario escribe para avisar a los demás
+        document.getElementById("mensaje").addEventListener("input", () => {
+            socket.emit("escribiendo", miNombre);
+            clearTimeout(temporizadorEscribiendo);
+            temporizadorEscribiendo = setTimeout(() => {
+                socket.emit("dejo-de-escribir");
+            }, 1200);
+        });
+
         function enviarMensaje() {
             const input = document.getElementById("mensaje");
             const texto = input.value.trim();
@@ -278,29 +299,53 @@
                     nombre: miNombre,
                     texto: texto
                 });
+                socket.emit("dejo-de-escribir");
                 input.value = "";
                 input.focus();
             }
         }
 
-        // Permitir enviar mensaje con Enter
         document.getElementById("mensaje").addEventListener("keypress", (e) => {
             if (e.key === "Enter") enviarMensaje();
         });
 
-        // Recibir mensajes y renderizar con colores diferenciados
-        socket.on("mensaje", ({ id, nombre, texto }) => {
+        // Actualizar lista de usuarios en línea
+        socket.on("lista-usuarios", (usuarios) => {
+            const barra = document.getElementById("barra-conectados");
+            barra.textContent = `En línea (${usuarios.length}): ${usuarios.join(", ")}`;
+        });
+
+        // Mostrar avisos cuando alguien entra o sale
+        socket.on("sistema", (textoAviso) => {
+            const lista = document.getElementById("mensajes");
+            const item = document.createElement("li");
+            item.classList.add("sistema");
+            item.textContent = textoAviso;
+            lista.appendChild(item);
+            lista.scrollTop = lista.scrollHeight;
+        });
+
+        // Mostrar quién está escribiendo
+        socket.on("escribiendo", (nombre) => {
+            document.getElementById("estado-escribiendo").textContent = `${nombre} está escribiendo...`;
+        });
+
+        socket.on("dejo-de-escribir", () => {
+            document.getElementById("estado-escribiendo").textContent = "";
+        });
+
+        // Recibir mensajes de todos
+        socket.on("mensaje", ({ id, nombre, texto, hora }) => {
             const lista = document.getElementById("mensajes");
             const item = document.createElement("li");
             const esMio = id === socket.id;
 
-            item.classList.add(esMio ? "propio" : "ajeno");
+            item.classList.add("burbuja", esMio ? "propio" : "ajeno");
 
             const etiquetaNombre = document.createElement("span");
             etiquetaNombre.classList.add("nombre-remitente");
             etiquetaNombre.textContent = esMio ? `${nombre} (Tú)` : nombre;
 
-            // Si es un mensaje ajeno, le asigna un color distintivo al nombre y borde
             if (!esMio) {
                 const colorUsuario = obtenerColorUsuario(id);
                 etiquetaNombre.style.color = colorUsuario;
@@ -310,13 +355,17 @@
             const contenidoTexto = document.createElement("span");
             contenidoTexto.textContent = texto;
 
+            const etiquetaHora = document.createElement("span");
+            etiquetaHora.classList.add("hora-mensaje");
+            etiquetaHora.textContent = hora || "";
+
             item.appendChild(etiquetaNombre);
             item.appendChild(contenidoTexto);
+            item.appendChild(etiquetaHora);
             lista.appendChild(item);
 
-            // Auto-scroll hacia el último mensaje
             lista.scrollTop = lista.scrollHeight;
         });
     </script>
 </body>
-</html> 
+</html>

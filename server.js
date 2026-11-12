@@ -8,27 +8,53 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
+// Guarda los usuarios conectados: { socketId: "Nombre" }
+const usuariosConectados = {};
+
 io.on("connection", (socket) => {
-  console.log("Usuario conectado:", socket.id);
+  console.log("Socket conectado:", socket.id);
 
-  // Recibe el objeto { nombre, texto } desde el cliente
+  // Cuando un usuario ingresa su nombre y entra al chat
+  socket.on("nuevo-usuario", (nombre) => {
+    usuariosConectados[socket.id] = nombre;
+
+    // Avisa a los demás que alguien se unió
+    socket.broadcast.emit("sistema", `${nombre} se unió al chat`);
+
+    // Envía la lista actualizada de usuarios conectados a todos
+    io.emit("lista-usuarios", Object.values(usuariosConectados));
+  });
+
+  // Cuando alguien envía un mensaje
   socket.on("mensaje", (datos) => {
-    console.log(`Mensaje de ${datos.nombre} (${socket.id}):`, datos.texto);
-
-    // Reenvía el ID del socket emisor, el nombre y el texto a todos
     io.emit("mensaje", {
       id: socket.id,
       nombre: datos.nombre,
-      texto: datos.texto
+      texto: datos.texto,
+      hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
   });
 
+  // Indicador de "está escribiendo..." (se envía a todos menos al que escribe)
+  socket.on("escribiendo", (nombre) => {
+    socket.broadcast.emit("escribiendo", nombre);
+  });
+
+  socket.on("dejo-de-escribir", () => {
+    socket.broadcast.emit("dejo-de-escribir");
+  });
+
+  // Cuando alguien cierra la pestaña o pierde conexión
   socket.on("disconnect", () => {
-    console.log("Usuario desconectado:", socket.id);
+    const nombre = usuariosConectados[socket.id];
+    if (nombre) {
+      delete usuariosConectados[socket.id];
+      io.emit("sistema", `${nombre} salió del chat`);
+      io.emit("lista-usuarios", Object.values(usuariosConectados));
+    }
   });
 });
 
-// Usa el puerto del servidor en la nube o el 3000 en local
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Servidor escuchando en http://localhost:${PORT}`);
